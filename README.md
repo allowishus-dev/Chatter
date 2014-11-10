@@ -1,4 +1,4 @@
 Chatter
 =======
 
-Simpel chat server &amp; client
+Simple chat server &amp; GUI client
