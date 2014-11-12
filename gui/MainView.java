@@ -37,6 +37,10 @@ import javax.swing.border.EmptyBorder;
 import sockets.ClientSockets;
 import java.awt.Font;
 import java.io.IOException;
+import java.net.ConnectException;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
+import java.net.UnknownHostException;
 
 public class MainView extends JFrame {
 
@@ -44,6 +48,15 @@ public class MainView extends JFrame {
 	private JSplitPane contentPane;
 	private JTextField textFieldAlias;
 	private JTextField textFieldMessage;
+	
+	protected static JTextArea getTextAreaChat() {
+		return textAreaChat;
+	}
+
+	protected JScrollBar getVerticalScrollBar() {
+		return verticalScrollBar;
+	}
+
 	private static JTextArea textAreaChat;
 	private JButton buttonConnect;
 	private boolean connected = false;
@@ -148,13 +161,42 @@ public class MainView extends JFrame {
 					
 					// get address and port from text fields
 					address = textFieldAddress.getText();
-					port = Integer.parseInt(textFieldPort.getText());
+					try {
+						port = Integer.parseInt(textFieldPort.getText());
+					}
+					catch (NumberFormatException e) {
+						textAreaChat.append("Port number not valid\n");
+						System.out.println("Port number not valid");
+						return;
+					}
 					
 					// create an instance to get sockets from
 					clientSockets = new ClientSockets();
 					
 					// try to connect
-					connected = clientSockets.connectToServer(address, port);
+					try {
+						clientSockets.connectToServer(address, port);
+						connected = true;
+					}
+					catch (ConnectException e) {
+						textAreaChat.append("Server is not reachable\n");
+						System.out.println("Server is not reachable");
+						connected = false;
+					}
+					catch (UnknownHostException e) {
+						textAreaChat.append("Unknown server\n");
+						System.out.println("Unknown server");
+						connected = false;
+					}
+					catch (IllegalArgumentException e) {
+						textAreaChat.append("Port number to large\n");
+						System.out.println("Port number to large");
+						connected = false;
+					}
+					catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 					
 					// if connect succeeds 
 					if (connected) {
@@ -187,7 +229,8 @@ public class MainView extends JFrame {
 							textFieldMessage.requestFocus();
 							
 							// create instance of handler for chat updates
-							gc = new GetChat(clientSockets, textAreaChat, verticalScrollBar);
+							gc = new GetChat(clientSockets, frame);
+//							textAreaChat, verticalScrollBar, buttonConnect
 							
 							// start handler in new thread
 							new Thread((Runnable) gc).start();
@@ -338,22 +381,46 @@ public class MainView extends JFrame {
 	public void setThread(Thread thread) {
 		this.thread = thread;
 	}
+	
+	protected void disconnect() {
+		textAreaChat.append("Left chat as " + alias + "\n");
+		buttonConnect.setText("Connect");
+		
+		// clear alias text field
+		textFieldAlias.setText("");
+		
+		// make connection text fields editable and message text field not
+		textFieldAddress.setEditable(true);
+		textFieldPort.setEditable(true);
+		textFieldAlias.setEditable(true);
+		textFieldMessage.setEditable(false);
+		
+		// move focus of text cursor to alias text field
+		textFieldAlias.requestFocus();
+		
+		// clear message text field
+		textFieldMessage.setText("");										
+		
+		enteredChat = false;
+	}
 }
 
 //_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/_/
 
-// handler for input from chatroom 
+// handler for input from chat room 
 class GetChat implements Runnable {
 	private ClientSockets cs;
 	private JTextArea ta;
 	private JScrollBar verticalScrollBar;
 	private boolean connected;
+	private MainView mainView;	
 	
-	// constructor enabling manipulation of the chat text area and vertical scroll bar surrounding it
-	public GetChat(ClientSockets cs, JTextArea ta, JScrollBar verticalScrollBar) {
+	// constructor enabling manipulation of objects added to the frame
+	public GetChat(ClientSockets cs, MainView frame) {
 		this.cs = cs;
-		this.ta = ta;
-		this.verticalScrollBar = verticalScrollBar;
+		this.mainView = frame;
+		this.ta = MainView.getTextAreaChat();
+		this.verticalScrollBar = mainView.getVerticalScrollBar();
 		
 		// wouldn't be created if not connected
 		setConnected(true);
@@ -376,9 +443,35 @@ class GetChat implements Runnable {
 					verticalScrollBar.setValue(verticalScrollBar.getMaximum());
 				}
 			}
-		} catch (IOException e) {
+		} 
+		catch (SocketException e) {
+			System.out.println("Lost connection to server");
+			ta.append("Lost connection to server\n");
+			disconnect();
+		}
+		catch (SocketTimeoutException e) {
+			System.out.println("Time out on connection to server");
+			ta.append("Time out on connection to server\n");
+			disconnect();
+			
+		}
+		catch (IOException e) {
 			e.printStackTrace();
 		}		
+	}
+	
+	private void disconnect() {
+		try {
+			cs.getSocket().close();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		// resets connect button and text fields in main view
+		mainView.disconnect();
+		
+		// breaks chat room listening loop
+		setConnected(false);
 	}
 
 	public boolean isConnected() {

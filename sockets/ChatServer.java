@@ -262,13 +262,36 @@ class InputHandler implements Runnable {
 					socketThread.setConnected(false);
 					
 					System.out.println("Threads after disconnect : " + Thread.activeCount());
-				}				
+				}
+				
+				if (socketThread == null || socketThread.getSocket() == null || !socketThread.getSocket().isConnected()) {
+					setConnected(false);
+					chatServer.remove((Observer) socketThread);
+					socketThread.setSocket(null);
+					socketThread.setConnected(false);
+				}
 			}
-		} 
-		catch (Exception e) {
+		}
+		catch (SocketException e) {
+//			e.printStackTrace();
+			setConnected(false);
+			System.out.println("Lost client socket");
+			chatServer.remove((Observer) socketThread);
+			socketThread.setSocket(null);
+			socketThread.setConnected(false);
+		}
+		catch (SocketTimeoutException e) {
+//			e.printStackTrace();
+			System.out.println("Time out on client socket");
+			chatServer.remove((Observer) socketThread);
+			socketThread.setSocket(null);
+			socketThread.setConnected(false);
+		}
+		catch (IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+		
 	}
 	
 	// ASCII art for easter egg

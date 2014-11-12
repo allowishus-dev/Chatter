@@ -19,13 +19,18 @@ public class ClientSockets {
 	private BufferedReader inFromServer;
 	private DataOutputStream outToServer;
     private Socket clientSocket;
-    private boolean isStreamReady;
+
+	private boolean isStreamReady;
     
     public ClientSockets() {
     	
     	isStreamReady = false;
     	
     }
+    
+    public Socket getSocket() {
+		return clientSocket;
+	}
     
     // returns boolean depending on success    
     public boolean writeToServer(String sentence) {
@@ -46,30 +51,17 @@ public class ClientSockets {
     	return true;
     }
     
-    // returns boolean depending on success
-    public boolean connectToServer(String address, int port) {
-        try {
+    public void connectToServer(String address, int port) throws ConnectException, UnknownHostException, IllegalArgumentException, IOException {
         	
-        	System.out.println("Looking for server ...");
-        	
-        	// create a new socket using the attributes address and port
-			clientSocket = new Socket(address, port);
-			// create an data output stream to connect to socket 
-			outToServer = new DataOutputStream(clientSocket.getOutputStream());
-			
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-			return false;
-		} catch (ConnectException e) {
-			e.printStackTrace();
-			return false;
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-        
+    	System.out.println("Looking for server ...");
+    	
+    	// create a new socket using the attributes address and port
+		clientSocket = new Socket(address, port);
+		// create an data output stream to connect to socket 
+		outToServer = new DataOutputStream(clientSocket.getOutputStream());
+
         System.out.println("Found server");
-        
-		return true;
+   
     }
     
     // make buffered reader available to gui
